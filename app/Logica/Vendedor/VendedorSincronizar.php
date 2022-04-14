@@ -23,8 +23,8 @@ class VendedorSincronizar {
         $data = DB::table('erp_sucursales')
                     ->select(
                         'id',
-                        DB::raw("REPLACE(nombre,' ','') as cdRegion"),DB::raw("'TERRI' as cdRegionType"),
-                        'nombre as dsRegion',DB::raw("'ACT' as cdRegionStatus"),DB::raw("NULL as cdParentRegion"),
+                        DB::raw("REPLACE(REPLACE(nombre,'Comercializadora ',''),' ','_') as cdRegion"),DB::raw("'TERRI' as cdRegionType"),
+                        DB::raw("REPLACE(nombre,'Comercializadora ','') as dsRegion"),DB::raw("'ACT' as cdRegionStatus"),DB::raw("NULL as cdParentRegion"),
                         DB::raw("NULL as cdUser"),DB::raw("NULL as nmFirstName"),DB::raw("NULL as nmLastName"),
                         DB::raw("NULL as nrPhone1"),DB::raw("NULL as nrPhone2"),DB::raw("NULL as Email"),DB::raw("NULL as cdUserStatus")
                     )
@@ -37,6 +37,7 @@ class VendedorSincronizar {
             
             fwrite($file, $line);
 
+            
             $data_ = DB::table('erp_id411_intmex_tester.system_acl_user_rol as usr_rol')
                 ->leftJoin('coral_erp.system_usuarios as usr','usr.id','usr_rol.fk_user')
                 ->leftJoin('erp_id411_intmex_tester.system_acl_rol as rol','rol.id','usr_rol.fk_rol')
@@ -45,25 +46,27 @@ class VendedorSincronizar {
                     // usr_rol.fk_user,usr_rol.fk_rol,usr.username,usr.nombre,ven.bolsa_acumulada,usr_rol.fk_sucursal,suc.nombre as sucursal
                     'usr.username as cdRegion',DB::raw("'ZONE' as cdRegionType"),'usr.nombre as dsRegion',DB::raw("'ACT' as cdRegionStatus"),
                     DB::raw("'$row->cdRegion' as cdParentRegion"),'usr.username as cdUser','usr.nombre as nmFirstName','usr.apellidoss as nmLastName',
-                    DB::raw("NULL as nrPhone1"),DB::raw("NULL as nrPhone2"),'usr.Email',DB::raw("'ACT' as cdUserStatus")
+                    DB::raw("NULL as nrPhone1"),DB::raw("NULL as nrPhone2"),'usr.Email',
+                    DB::raw("IF(ven.estado='ACTIVO','ACT','DEACT') as cdUserStatus")
                 )
                 ->where('ven.fk_sucursal', $row->id)
                 ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')")
                 ->get();
             
-                foreach($data_ as $row_) {
+            foreach($data_ as $row_) {
 
-                    $line = substr($row_->cdRegion.'_'.$row_->cdParentRegion, 0, 30);
-                    $line.= "\t".$row_->cdRegionType."\t".substr($row->dsRegion." - ".$row_->dsRegion, 0, 30);
-                    $line.= "\t".$row_->cdRegionStatus."\t".$row_->cdParentRegion."\t".$row_->cdUser;
-                    $line.= "\t".$row_->nmFirstName."\t".$row_->nmLastName."\t".$row_->nrPhone1."\t".$row_->nrPhone2."\t".$row_->Email."\t".$row_->cdUserStatus."\n";
-                    
-                    fwrite($file, $line);
-                }
+                $line = substr($row_->cdRegion.'_'.$row_->cdParentRegion, 0, 30);
+                $line.= "\t".$row_->cdRegionType."\t".substr($row->dsRegion." - ".$row_->dsRegion, 0, 30);
+                $line.= "\t".$row_->cdRegionStatus."\t".$row_->cdParentRegion."\t".$row_->cdUser;
+                $line.= "\t".$row_->nmFirstName."\t".$row_->nmLastName."\t".$row_->nrPhone1."\t".$row_->nrPhone2."\t".$row_->Email."\t".$row_->cdUserStatus."\n";
+                
+                fwrite($file, $line);
+            }
         }
 
         fclose($file);
-
+        die();
+        
         try {
 
             $connection = ssh2_connect(env('FTP_IP'), 22);

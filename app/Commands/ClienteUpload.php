@@ -4,23 +4,23 @@ namespace App\Commands;
 
 use Illuminate\Console\Scheduling\Schedule;
 use LaravelZero\Framework\Commands\Command;
-use App\Logica\Vendedor\VendedorSincronizar;
+use App\Logica\Cliente\ClienteSincronizar;
 
-class VendedorUpload extends Command
+class ClienteUpload extends Command
 {
     /**
      * The signature of the command.
      *
      * @var string
      */
-    protected $signature = 'vendedor:upload';
+    protected $signature = 'cliente:upload';
 
     /**
      * The description of the command.
      *
      * @var string
      */
-    protected $description = 'Subida de vendedores a DMS';
+    protected $description = 'Subida de Clientes a DMS';
 
     /**
      * Execute the console command.
@@ -29,12 +29,12 @@ class VendedorUpload extends Command
      */
     public function handle()
     {
-        $sincronizar = new VendedorSincronizar();
+        $sincronizar = new ClienteSincronizar();
         
         try {
             $sincronizar->upload();
         }
-        catch(\Exception $e){
+        catch(\Exception $e) {
             $this->error($e->getMessage());
         }
     }
