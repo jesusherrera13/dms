@@ -11,42 +11,6 @@ class ClienteSincronizar {
 
     function upload() {
 
-        /* 
-        SELECT ven.fk_sucursal,cli.* FROM erp_id411_intmex_tester.ventas_clientes as cli
-        left join erp_id411_intmex_tester.ventas_vendedores as ven on ven.id=cli.fk_vendedor
-        where cli.localidad like '%california%' and ven.fk_sucursal=1;
-
-        SELECT ven.fk_sucursal,cli.* FROM erp_id411_intmex_tester.ventas_clientes as cli
-        left join erp_id411_intmex_tester.ventas_vendedores as ven on ven.id=cli.fk_vendedor
-        where cli.localidad like '%california%' and ven.fk_sucursal=3; 
-        */
-        /* 
-
-
-        // dd($data);
-
-        foreach($data as $row) {
-
-            // dd($row->nombre);
-
-            // $data_ = DB::table('ventas_clientes')->where('localidad', 'like', '%'.$row->nombre.'%')->get();
-            // $data_ = DB::table('ventas_clientes')->where('localidad', $row->nombre)->get();
-            
-            DB::table('ventas_clientes')->where('localidad', $row->nombre)->update(['id_ciudad' => $row->id_ciudad]);
-            foreach($data_ as $row_) {
-                // dd($row->id_ciudad);
-                // DB::table('ventas_clientes')->where('id', $row_->id)->update(['id_ciudad' => $row->id_ciudad]);
-            }
-
-            // $data_ = DB::where('nombre', 'like', '%'.$row->nombre.'%')->update();
-
-            // dd($data_);
-            
-        }
-
-
-        die("xxx"); */
-
         if(!file_exists(env('PATH_UPLOAD'))) {
             mkdir(env('PATH_UPLOAD'), 0777);
         }
@@ -56,7 +20,7 @@ class ClienteSincronizar {
 
         $file =  fopen($file_full_name,"a");
 
-        $data = DB::table('ventas_clientes as cli')
+        $query = DB::table('ventas_clientes as cli')
                     ->leftJoin('ventas_vendedores as ven','ven.id','cli.fk_vendedor')
                     ->leftJoin('coral_erp.system_usuarios as usr','usr.id','ven.fk_user')
                     ->leftJoin('erp_sucursales as suc','suc.id','ven.fk_sucursal')
@@ -65,22 +29,28 @@ class ClienteSincronizar {
                         'cli.clave as cdStore',
                         DB::raw("IF(cli.estado='ACTIVO', 'ACT','DEACT') as cdStatus"),
                         DB::raw("'LATAM' as cdStoreBrand"),
-                        DB::raw("NULL as dsName"), //
-                        DB::raw("NULL as dsCorporateName"), //
+                        DB::raw("'NULL' as dsName"), //
+                        DB::raw("'NULL' as dsCorporateName"), //
                         DB::raw("1 as cdClass1"),
-                        DB::raw("NULL as cdClass2"),
+                        DB::raw("11 as cdClass2"),
                         // DB::raw("cli.id_municipio as cdCity"), // Estado y municipio del cliente
                         // DB::raw("cli.id_ciudad as cdCity"), // Solicitan código de ciudad, solo llegamos hasta municipio
+                        
+                        // MX|14|14002	Mexicali	MX|14	Baja California
+                        // MX|25|25007	Culiac�n	MX|25	Sinaloa
+                        // MX|14|14005	Tijuana	MX|14	Baja California
+                        // MX|25|25012	Mazatl�n	MX|25	Sinaloa
+
                         DB::raw("
                             if(
                                 ven.fk_sucursal=1,'14002',
                                 if(
                                     ven.fk_sucursal=2,'25007',
                                     if(
-                                        ven.fk_sucursal=3,'25007',
+                                        ven.fk_sucursal=3,'14005',
                                         if(
                                             ven.fk_sucursal=4,'25012',
-                                            NULL
+                                            'NULL'
                                         )
                                     )
                                 )
@@ -88,14 +58,17 @@ class ClienteSincronizar {
                         ),
                         DB::raw("CONCAT(ven.fk_sucursal,'_',usr.username) as cdRegion"), // Obtenerla de las sucursales
                         // 'cli.localidad as nmAddress',
-                        DB::raw("NULL as nmAddress"),
-                        DB::raw("NULL as nrAddress"),
-                        DB::raw("NULL as dsAddressComplement"),
-                        DB::raw("NULL as nrZipCode"),
-                        DB::raw("NULL as nmNeighborhood"),
+                        DB::raw("'NULL' as nmAddress"),
+                        DB::raw("'NULL' as nrAddress"),
+                        DB::raw("'NULL' as dsAddressComplement"),
+                        DB::raw("'NULL' as nrZipCode"),
+                        DB::raw("'NULL' as nmNeighborhood"),
                     )
+                    ->where('cli.fk_vendedor', '>', 0)
+                    ->where('ven.fk_sucursal', '>', 0);
                     // ->limit(1)
-                    ->get();
+        // dd($query->toSql());
+        $data = $query->get();
         
         foreach($data as $row) {
 
@@ -107,7 +80,7 @@ class ClienteSincronizar {
         }
 
         fclose($file);
-        // die();
+        die();
 
         try {
 

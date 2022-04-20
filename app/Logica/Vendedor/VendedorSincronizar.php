@@ -20,7 +20,7 @@ class VendedorSincronizar {
 
         $file =  fopen($file_full_name,"a");
 
-        $data = DB::table('erp_sucursales')
+        $query = DB::table('erp_sucursales')
                     ->select(
                         'id as cdRegion',
                         // DB::raw("REPLACE(REPLACE(nombre,'Comercializadora ',''),' ','_') as cdRegion"),
@@ -28,8 +28,11 @@ class VendedorSincronizar {
                         DB::raw("REPLACE(nombre,'Comercializadora ','') as dsRegion"),DB::raw("'ACT' as cdRegionStatus"),DB::raw("NULL as cdParentRegion"),
                         DB::raw("NULL as cdUser"),DB::raw("NULL as nmFirstName"),DB::raw("NULL as nmLastName"),
                         DB::raw("NULL as nrPhone1"),DB::raw("NULL as nrPhone2"),DB::raw("NULL as Email"),DB::raw("NULL as cdUserStatus")
-                    )
-                    ->get();
+                    );
+
+        // dd($query->toSql());
+        
+        $data = $query->get();
         
         foreach($data as $row) {
 
@@ -39,20 +42,28 @@ class VendedorSincronizar {
             fwrite($file, $line);
 
             
-            $data_ = DB::table('system_acl_user_rol as usr_rol')
+            $query_ = DB::table('system_acl_user_rol as usr_rol')
                 ->leftJoin('coral_erp.system_usuarios as usr','usr.id','usr_rol.fk_user')
                 ->leftJoin('system_acl_rol as rol','rol.id','usr_rol.fk_rol')
                 ->leftJoin('ventas_vendedores as ven','ven.fk_user','usr.id')
                 ->select(
                     // usr_rol.fk_user,usr_rol.fk_rol,usr.username,usr.nombre,ven.bolsa_acumulada,usr_rol.fk_sucursal,suc.nombre as sucursal
-                    'usr.username as cdRegion',DB::raw("'ZONE' as cdRegionType"),'usr.nombre as dsRegion',DB::raw("'ACT' as cdRegionStatus"),
-                    DB::raw("'$row->cdRegion' as cdParentRegion"),'usr.username as cdUser','usr.nombre as nmFirstName','usr.apellidoss as nmLastName',
-                    DB::raw("NULL as nrPhone1"),DB::raw("NULL as nrPhone2"),'usr.Email',
+                    'usr.username as cdRegion',
+                    DB::raw("'ZONE' as cdRegionType"),'usr.nombre as dsRegion',
+                    DB::raw("'ACT' as cdRegionStatus"),
+                    DB::raw("'$row->cdRegion' as cdParentRegion"),
+                    'usr.username as cdUser',
+                    'usr.nombre as nmFirstName',
+                    'usr.apellidoss as nmLastName',
+                    DB::raw("'NULL' as nrPhone1"),
+                    DB::raw("'NULL' as nrPhone2"),'usr.Email',
                     DB::raw("IF(ven.estado='ACTIVO','ACT','DEACT') as cdUserStatus")
                 )
                 ->where('ven.fk_sucursal', $row->cdRegion)
-                ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')")
-                ->get();
+                ->where('usr_rol.fk_rol', 4)
+                ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')");
+            
+            $data_ = $query_->get();
             
             foreach($data_ as $row_) {
 

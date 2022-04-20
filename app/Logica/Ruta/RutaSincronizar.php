@@ -20,12 +20,15 @@ class RutaSincronizar {
 
         $file =  fopen($file_full_name,"a");
 
-        $data = DB::table('ventas_rutas')
+        $query = DB::table('ventas_rutas')
                     ->select(
                         'id as cdRoute','nombre as nmRoute',DB::raw("'ACT' as cdStatus"),
                     )
+                    ->where('nombre', '!=', '');
                     // ->limit(1)
-                    ->get();
+        
+        // dd($query->toSql());
+        $data = $query->get();
         
         foreach($data as $row) {
 
@@ -35,7 +38,7 @@ class RutaSincronizar {
         }
 
         fclose($file);
-        // die();
+        die();
 
         try {
 

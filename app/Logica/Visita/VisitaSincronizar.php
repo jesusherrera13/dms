@@ -20,7 +20,7 @@ class VisitaSincronizar {
 
         $file =  fopen($file_full_name,"a");
 
-        $data = DB::table('preventa_planning_detalles as detalles')
+        $query = DB::table('preventa_planning_detalles as detalles')
                     ->leftJoin('preventa_plannings AS planning', 'planning.id','detalles.fk_planning')
                     ->leftJoin('preventa_despacho_rutas AS despacho', 'despacho.fk_planning','planning.id')
                     ->leftJoin('ventas_vendedores AS vendedor', 'vendedor.fk_user', 'planning.fk_usuario')
@@ -34,7 +34,7 @@ class VisitaSincronizar {
                         'planning.fk_sucursal as cdRegion',
                         'detalles.fk_cliente as cdStore',
                         'usr.username as cdUser',
-                        'despacho.fecha as dtStart',
+                        DB::raw("SUBSTR(despacho.fecha,1,10) as dtStart"),
                         DB::raw("
                             IF(
                                 despacho.estado='TERMINADO','FINAL',
@@ -45,25 +45,12 @@ class VisitaSincronizar {
                             ) AS cdStatus"
                         ),
                     )
-                    ->whereRaw("despacho.fecha >=(select date_format(now(),'%Y-%m-01'))")
+                    ->whereRaw("despacho.fecha >=(select date_format(now(),'%Y-%m-01'))");
                     // ->limit(1)
-                    ->get();
 
-                    /* 
-                    SELECT planning.fk_usuario, vendedor.nombre AS nombre_vendedor, detalles.fk_cliente,
-                    cliente.nombre AS nombre_cliente, cliente.empresa, cliente.colonia, COUNT(*)
-                    AS total_visitas, ruta.nombre AS nombre_ruta, despacho.fecha
-                    FROM preventa_planning_detalles AS detalles
-                    LEFT JOIN preventa_plannings AS planning ON planning.id = detalles.fk_planning
-                    LEFT JOIN preventa_despacho_rutas AS despacho ON despacho.fk_planning = planning.id
-                    LEFT JOIN ventas_vendedores AS vendedor ON vendedor.fk_user = planning.fk_usuario
-                    LEFT JOIN ventas_clientes AS cliente ON cliente.id = detalles.fk_cliente
-                    LEFT JOIN ventas_rutas AS ruta ON ruta.id = cliente.fk_ruta
-                    LEFT JOIN ventas_clientes_canal AS canal ON canal.id = cliente.fk_canal
-                 LEFT JOIN ventas_clientes_subcanal AS subcanal ON subcanal.id = cliente.fk_subcanal
-                    WHERE despacho.fecha BETWEEN '$fechaInicio 00:00:00' AND '$fechaFin 23:59:59' $filtros $sucursal 
-                    */
-        
+        // dd($query->toSql());
+        $data = $query->get();
+
         foreach($data as $row) {
 
             $line = $row->cdVisitInstance."\t".$row->cdRegion."\t".$row->cdStore."\t".$row->cdUser."\t".$row->dtStart."\t".$row->cdStatus."\n";
@@ -72,7 +59,7 @@ class VisitaSincronizar {
         }
 
         fclose($file);
-        // die();
+        die();
 
         try {
 
