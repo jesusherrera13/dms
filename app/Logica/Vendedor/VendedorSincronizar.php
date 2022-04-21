@@ -49,7 +49,8 @@ class VendedorSincronizar {
                 ->select(
                     // usr_rol.fk_user,usr_rol.fk_rol,usr.username,usr.nombre,ven.bolsa_acumulada,usr_rol.fk_sucursal,suc.nombre as sucursal
                     'usr.username as cdRegion',
-                    DB::raw("'ZONE' as cdRegionType"),'usr.nombre as dsRegion',
+                    DB::raw("'ZONE' as cdRegionType"),
+                    'usr.nombre as dsRegion',
                     DB::raw("'ACT' as cdRegionStatus"),
                     DB::raw("'$row->cdRegion' as cdParentRegion"),
                     'usr.username as cdUser',

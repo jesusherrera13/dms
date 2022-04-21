@@ -38,7 +38,7 @@ class RutaSincronizar {
         }
 
         fclose($file);
-        die();
+        // die();
 
         try {
 

@@ -25,8 +25,10 @@ class ClienteSincronizar {
                     ->leftJoin('coral_erp.system_usuarios as usr','usr.id','ven.fk_user')
                     ->leftJoin('erp_sucursales as suc','suc.id','ven.fk_sucursal')
                     ->leftJoin('system_ubicacion_municipios as mun','mun.id','suc.fk_municipio')
+                    ->leftJoin('system_acl_user_rol as usr_rol','usr_rol.fk_user','usr.id')
+                    
                     ->select(
-                        'cli.clave as cdStore',
+                        'cli.id as cdStore',
                         DB::raw("IF(cli.estado='ACTIVO', 'ACT','DEACT') as cdStatus"),
                         DB::raw("'LATAM' as cdStoreBrand"),
                         DB::raw("'NULL' as dsName"), //
@@ -50,13 +52,13 @@ class ClienteSincronizar {
                                         ven.fk_sucursal=3,'14005',
                                         if(
                                             ven.fk_sucursal=4,'25012',
-                                            'NULL'
+                                            '14002'
                                         )
                                     )
                                 )
                             ) cdCity"
                         ),
-                        DB::raw("CONCAT(ven.fk_sucursal,'_',usr.username) as cdRegion"), // Obtenerla de las sucursales
+                        DB::raw("CONCAT(usr.username,'_',ven.fk_sucursal) as cdRegion"), // Obtenerla de las sucursales
                         // 'cli.localidad as nmAddress',
                         DB::raw("'NULL' as nmAddress"),
                         DB::raw("'NULL' as nrAddress"),
@@ -65,7 +67,11 @@ class ClienteSincronizar {
                         DB::raw("'NULL' as nmNeighborhood"),
                     )
                     ->where('cli.fk_vendedor', '>', 0)
-                    ->where('ven.fk_sucursal', '>', 0);
+                    ->where('ven.fk_sucursal', '>', 0)
+                    ->whereNotNull('suc.nombre')
+                    ->where('usr_rol.fk_rol', 4)
+                    ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')")
+                    ;
                     // ->limit(1)
         // dd($query->toSql());
         $data = $query->get();
@@ -80,7 +86,7 @@ class ClienteSincronizar {
         }
 
         fclose($file);
-        die();
+        // die();
 
         try {
 

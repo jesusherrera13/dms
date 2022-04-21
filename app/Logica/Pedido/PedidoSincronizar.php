@@ -24,6 +24,7 @@ class PedidoSincronizar {
         $file =  fopen($file_full_name, "a");
         $file_i =  fopen($file_full_name_i, "a");
 
+        /* 
         $query = DB::table('ventas_pedidos as ped')
                     ->leftJoin("ventas_vendedores as ven","ven.id","ped.fk_vendedor")
                     ->leftJoin("coral_erp.system_usuarios as usr","usr.id","ven.fk_user")
@@ -31,26 +32,42 @@ class PedidoSincronizar {
                     ->leftJoin("ventas_ventas as venta","venta.id","ped.fk_venta")
                     ->leftJoin("facturacion_facturas as fact","fact.id","venta.fk_factura")
                     ->select(
-                        'ped.id as cdOrder',
-                        'ped.fk_vendedor as cdCreationUser',
+                        'venta.folio as cdOrder',
+                        'usr.username as cdCreationUser',
                         'ped.fk_cliente as cdStore',
                         'usr.username as cdRegion',
                         DB::raw("substr(ped.fecha,1,10) as dtOrder"),
                         DB::raw('ifnull(venta.descuento,0) as vlDiscountTotal'),
-                        DB::raw('ifnull(venta.total,0) as vlTotalOrder'),
+                        // DB::raw('ifnull(venta.total,0) as vlTotalOrder'),
                         DB::raw("
                             (
-                                SELECT COUNT(detalle.fk_pedido)
-                                from ventas_pedidos_detalle as detalle 
-                                where detalle.fk_pedido=ped.id
+                                SELECT sum(detalle.importe)
+                                from ventas_ventas_detalles as detalle 
+                                left join ventas_productos as prod on prod.id=detalle.id_producto 
+                                where detalle.id_venta=venta.id and prod.id_grupo=10
+                            ) as vlTotalOrder
+                        "),
+                        DB::raw("
+                            (
+                                SELECT COUNT(detalle.id_venta)
+                                from ventas_ventas_detalles as detalle 
+                                where detalle.id_venta=venta.id
                             ) as vlTotalUnit
                         "),
                         'cli.fk_ruta as cdRoute',
                         DB::raw("if(ped.estado='SURTIDO','APPR','CANC') as cdStatusOrder"),
-                        DB::raw("ifnull(venta.fk_factura,'NULL') as cdInvoice"),
+                        DB::raw("ifnull(fact.folio,'NULL') as cdInvoice"),
                         DB::raw("concat(fact.serie,'',fact.fk_serie) as dsDisplayText"),
                         DB::raw("ifnull(substr(fact.fecha,1,10),'NULL') as dtInvoice"),
-                        DB::raw("ifnull(fact.total,'NULL') as vlTotalInvoice"),
+                        // DB::raw("ifnull(fact.total,'NULL') as vlTotalInvoice"),
+                        DB::raw("
+                            (
+                                SELECT sum(detalle.importe)
+                                from facturacion_facturas_detalles as detalle 
+                                left join ventas_productos as pro on pro.id=detalle.id_producto 
+                                where detalle.fk_factura=fact.id and pro.id_grupo=10
+                            ) as vlTotalInvoice
+                        "),
                         DB::raw("
                             (
                                 select ifnull(sum(factdet.cantidad),'NULL')
@@ -67,7 +84,71 @@ class PedidoSincronizar {
                     // ->whereRaw("ped.fecha >=(select date_format(now(),'%Y-%m-01'))")
                     ->whereIn("ped.estado", ['SURTIDO','CANCELADO'])
                     ->whereNotNull("venta.fk_factura")
-                    // ->where("venta.fk_factura",'32892') // Prueba con grupo UNILEVER
+                    ->where("venta.fk_factura",'32892') // Prueba con grupo UNILEVER
+                    ->whereRaw("ped.fecha >=(select date_format(now(),'%Y-%m-01'))")
+                    ; 
+                    */
+
+                    $query = DB::table('ventas_pedidos as ped')
+                    ->leftJoin("ventas_vendedores as ven","ven.id","ped.fk_vendedor")
+                    ->leftJoin("coral_erp.system_usuarios as usr","usr.id","ven.fk_user")
+                    ->leftJoin("ventas_clientes as cli","cli.id","ped.fk_cliente")
+                    ->leftJoin("ventas_ventas as venta","venta.id","ped.fk_venta")
+                    ->leftJoin("facturacion_facturas as fact","fact.id","venta.fk_factura")
+                    ->select(
+                        'venta.folio as cdOrder',
+                        'usr.username as cdCreationUser',
+                        'ped.fk_cliente as cdStore',
+                        'usr.username as cdRegion',
+                        DB::raw("substr(ped.fecha,1,10) as dtOrder"),
+                        DB::raw('ifnull(venta.descuento,0) as vlDiscountTotal'),
+                        // DB::raw('ifnull(venta.total,0) as vlTotalOrder'),
+                        DB::raw("
+                            (
+                                SELECT sum(detalle.importe)
+                                from ventas_ventas_detalles as detalle 
+                                left join ventas_productos as prod on prod.id=detalle.id_producto 
+                                where detalle.id_venta=venta.id and prod.id_grupo=10
+                            ) as vlTotalOrder
+                        "),
+                        DB::raw("
+                            (
+                                SELECT COUNT(detalle.id_venta)
+                                from ventas_ventas_detalles as detalle 
+                                where detalle.id_venta=venta.id
+                            ) as vlTotalUnit
+                        "),
+                        'cli.fk_ruta as cdRoute',
+                        DB::raw("if(ped.estado='SURTIDO','APPR','CANC') as cdStatusOrder"),
+                        DB::raw("ifnull(fact.folio,'NULL') as cdInvoice"),
+                        DB::raw("concat(fact.serie,'',fact.fk_serie) as dsDisplayText"),
+                        DB::raw("ifnull(substr(fact.fecha,1,10),'NULL') as dtInvoice"),
+                        // DB::raw("ifnull(fact.total,'NULL') as vlTotalInvoice"),
+                        /* DB::raw("
+                            (
+                                SELECT sum(detalle.importe)
+                                from facturacion_facturas_detalles as detalle 
+                                left join ventas_productos as pro on pro.id=detalle.id_producto 
+                                where detalle.fk_factura=fact.id and pro.id_grupo=10
+                            ) as vlTotalInvoice
+                        "),
+                        DB::raw("
+                            (
+                                select ifnull(sum(factdet.cantidad),'NULL')
+                                from facturacion_facturas_detalles as factdet
+                                where factdet.fk_factura=fact.id
+                            ) as nrTotalQuantity
+                        "), */
+                        DB::raw("if(fact.id_status,'1',if(fact.id_status=0,'0','NULL')) as cdStatusInvoice"),
+                        'venta.folio as nrSequenceOrder',
+                        'fact.folio as nrSequenceInvoice',
+                        // "fact.id_status as cdStatusInvoice"
+                        // DB::raw("if(fact.id_status,'ACT',if(fact.id_status=0,'DEACT','NULL')) as cdStatusInvoice")
+                    )
+                    // ->whereRaw("ped.fecha >=(select date_format(now(),'%Y-%m-01'))")
+                    ->whereIn("ped.estado", ['SURTIDO','CANCELADO'])
+                    ->whereNotNull("venta.fk_factura")
+                    ->where("venta.fk_factura",'32892') // Prueba con grupo UNILEVER
                     ->whereRaw("ped.fecha >=(select date_format(now(),'%Y-%m-01'))")
                     ;
 
@@ -75,39 +156,43 @@ class PedidoSincronizar {
         
         $data = $query->get();
         
-        // dd($data);
+        dd($data);
 
         $articulos = [];
         
         foreach($data as $row) {
 
+            /* 
             $line = $row->cdOrder."\t".$row->cdCreationUser."\t".$row->cdStore."\t".$row->cdRegion."\t".$row->dtOrder."\t".$row->vlDiscountTotal;
             $line.= "\t".$row->vlTotalOrder."\t".$row->vlTotalUnit."\t".$row->cdRoute."\t".$row->cdStatusOrder."\t".$row->cdInvoice;
             $line.= "\t".$row->dsDisplayText."\t".$row->dtInvoice."\t".$row->vlTotalInvoice."\t".$row->nrTotalQuantity."\t".$row->cdStatusInvoice."\n";
             
-            fwrite($file, $line);
+            fwrite($file, $line); 
+            */
 
-            DB::statement(DB::raw('set @contador:=0'));
-            DB::statement(DB::raw("set @id:=0;"));
+            // DB::statement(DB::raw('set @contador:=0'));
+            // DB::statement(DB::raw("set @id:=0;"));
 
             $query_i = DB::table('facturacion_facturas_detalles as det')
+                    ->leftJoin("facturacion_facturas as fact","fact.id","det.fk_factura")
                     ->leftJoin("ventas_productos as prod", "prod.id", "det.id_producto")
                     ->select(
                         DB::raw("'$row->cdOrder' as cdOrder"),
-                        'det.id_producto as cdProduct',
+                        'prod.clave as cdProduct',
                         DB::raw("'$row->nrSequenceOrder' as nrSequenceOrder"),
                         'det.cantidad as nrQuantityOrder',
                         DB::raw("'NULL' as vlDiscountSubtotal"),
                         DB::raw("ifnull(det.descuento_pesos,'NULL') as vlSubtotalOrder"),
                         DB::raw("'$row->cdInvoice' as cdInvoice"),
                         DB::raw("'$row->nrSequenceInvoice' as nrSequenceInvoice"),
-                        DB::raw("'NULL' as nrQuantityInvoice"),
+                        'det.cantidad as nrQuantityInvoice',
                         'det.importe as vlSubtotalInvoice',
                         'det.nombre as producto',
                         "prod.id_grupo"
                     )
-                    ->where("det.fk_factura", $row->cdInvoice)
+                    ->where("fact.folio", $row->cdInvoice)
                     ->where("det.id_producto",">",0)
+                    ->where("prod.id_grupo",10)
                     ->orderBy("det.nombre");
                     // ->leftJoin("coral_erp.system_usuarios as usr","usr.id","ven.fk_user")
                     // ->leftJoin("ventas_clientes as cli","cli.id","ped.fk_cliente")

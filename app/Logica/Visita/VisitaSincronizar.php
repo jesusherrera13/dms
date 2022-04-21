@@ -21,7 +21,7 @@ class VisitaSincronizar {
         $file =  fopen($file_full_name,"a");
 
         $query = DB::table('preventa_planning_detalles as detalles')
-                    ->leftJoin('preventa_plannings AS planning', 'planning.id','detalles.fk_planning')
+                    ->leftJoin('preventa_plannings as planning', 'planning.id','detalles.fk_planning')
                     ->leftJoin('preventa_despacho_rutas AS despacho', 'despacho.fk_planning','planning.id')
                     ->leftJoin('ventas_vendedores AS vendedor', 'vendedor.fk_user', 'planning.fk_usuario')
                     ->leftJoin('ventas_clientes AS cliente', 'cliente.id', 'detalles.fk_cliente')
@@ -29,9 +29,12 @@ class VisitaSincronizar {
                     ->leftJoin('ventas_clientes_canal AS canal', 'canal.id', 'cliente.fk_canal')
                     ->leftJoin('ventas_clientes_subcanal AS subcanal', 'subcanal.id', 'cliente.fk_subcanal')
                     ->leftJoin('coral_erp.system_usuarios as usr','usr.id','planning.fk_usuario')
+                    ->leftJoin('system_acl_user_rol as usr_rol','usr_rol.fk_user','usr.id')
                     ->select(
                         'planning.id as cdVisitInstance',
-                        'planning.fk_sucursal as cdRegion',
+                        // 'planning.fk_sucursal as cdRegion',
+                        // DB::raw("'ZONE' as cdRegion"),
+                        DB::raw("CONCAT(usr.username,'_',vendedor.fk_sucursal) as cdRegion"),
                         'detalles.fk_cliente as cdStore',
                         'usr.username as cdUser',
                         DB::raw("SUBSTR(despacho.fecha,1,10) as dtStart"),
@@ -45,21 +48,26 @@ class VisitaSincronizar {
                             ) AS cdStatus"
                         ),
                     )
-                    ->whereRaw("despacho.fecha >=(select date_format(now(),'%Y-%m-01'))");
+                    ->where('usr_rol.fk_rol', 4)
+                    ->whereRaw("despacho.fecha >=(select date_format(now(),'%Y-%m-01'))")
+                    ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')")
+                    ;
                     // ->limit(1)
 
         // dd($query->toSql());
+
         $data = $query->get();
 
         foreach($data as $row) {
 
-            $line = $row->cdVisitInstance."\t".$row->cdRegion."\t".$row->cdStore."\t".$row->cdUser."\t".$row->dtStart."\t".$row->cdStatus."\n";
+            $line = $row->cdVisitInstance."_".$row->cdStore;
+            $line.= "\t".$row->cdRegion."\t".$row->cdStore."\t".$row->cdUser."\t".$row->dtStart."\t".$row->cdStatus."\n";
             
             fwrite($file, $line);
         }
 
         fclose($file);
-        die();
+        // die();
 
         try {
 
