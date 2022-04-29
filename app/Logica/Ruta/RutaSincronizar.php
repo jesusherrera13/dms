@@ -42,6 +42,8 @@ class RutaSincronizar {
 
         try {
 
+            echo "\nExportando `$file_name`"; 
+
             $connection = ssh2_connect(env('FTP_IP'), 22);
             ssh2_auth_password($connection, env('FTP_USER'), env('FTP_PASSWORD'));
 
@@ -55,7 +57,7 @@ class RutaSincronizar {
             fclose($resFile);
             fclose($srcFile);
 
-            echo $file_name." exportado exitosamente\n";
+            echo "\n\texportado exitosamente\n";
         }
         catch(Exception $e) {
 

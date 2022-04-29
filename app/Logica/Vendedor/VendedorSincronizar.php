@@ -25,7 +25,8 @@ class VendedorSincronizar {
                         'id as cdRegion',
                         // DB::raw("REPLACE(REPLACE(nombre,'Comercializadora ',''),' ','_') as cdRegion"),
                         DB::raw("'TERRI' as cdRegionType"),
-                        DB::raw("REPLACE(nombre,'Comercializadora ','') as dsRegion"),DB::raw("'ACT' as cdRegionStatus"),DB::raw("NULL as cdParentRegion"),
+                        DB::raw("REPLACE(nombre,'Comercializadora ','') as dsRegion"),DB::raw("'ACT' as cdRegionStatus"),
+                        DB::raw("NULL as cdParentRegion"),
                         DB::raw("NULL as cdUser"),DB::raw("NULL as nmFirstName"),DB::raw("NULL as nmLastName"),
                         DB::raw("NULL as nrPhone1"),DB::raw("NULL as nrPhone2"),DB::raw("NULL as Email"),DB::raw("NULL as cdUserStatus")
                     );
@@ -40,9 +41,8 @@ class VendedorSincronizar {
             $line.= "\t".$row->nmFirstName."\t".$row->nmLastName."\t".$row->nrPhone1."\t".$row->nrPhone2."\t".$row->Email."\t".$row->cdUserStatus."\n";
             
             fwrite($file, $line);
-
             
-            $query_ = DB::table('system_acl_user_rol as usr_rol')
+            $query_ = DB::table("system_acl_user_rol as usr_rol")
                 ->leftJoin('coral_erp.system_usuarios as usr','usr.id','usr_rol.fk_user')
                 ->leftJoin('system_acl_rol as rol','rol.id','usr_rol.fk_rol')
                 ->leftJoin('ventas_vendedores as ven','ven.fk_user','usr.id')
@@ -64,6 +64,8 @@ class VendedorSincronizar {
                 ->where('usr_rol.fk_rol', 4)
                 ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')");
             
+            // dd($query_->toSql());
+            
             $data_ = $query_->get();
             
             foreach($data_ as $row_) {
@@ -81,7 +83,7 @@ class VendedorSincronizar {
         // die();
         
         try {
-
+            echo "\nExportando `$file_name`"; 
             $connection = ssh2_connect(env('FTP_IP'), 22);
             ssh2_auth_password($connection, env('FTP_USER'), env('FTP_PASSWORD'));
 
@@ -95,7 +97,7 @@ class VendedorSincronizar {
             fclose($resFile);
             fclose($srcFile);
 
-            echo $file_name." exportado exitosamente\n";
+            echo "\n\texportado exitosamente\n";
         }
         catch(Exception $e) {
 

@@ -78,10 +78,12 @@ class InventarioSincronizar {
         
         foreach($data as $row) {
 
-            // echo $row->cdWarehouse."|".$row->id."\n<br>";
+            echo $row->cdWarehouse."|".$row->id."\n<br>";
             
             $query = DB::table("inventarios_movimiento_detalle as det")
+                        ->leftJoin("ventas_productos as prod", "prod.id", "det.fk_producto")
                         ->select(
+                            "prod.precio_con_impuestos",
                             DB::raw("round(ifnull(det.saldo*det.precio_con_impuestos,0),2) as vlBeginningMonthAmount")
                         )
                         ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
@@ -89,7 +91,7 @@ class InventarioSincronizar {
                         ->where("det.fk_producto", $row->id)
                         ->orderBy("det.fecha")
                         ->limit(1);
-            // dd($query->toSql());
+            dd($query->toSql());
             $data_ = $query->get();
             // dd($data_);
             $row->vlBeginningMonthAmount = empty($data_[0]) ? "NULL" : $data_[0]->vlBeginningMonthAmount;
