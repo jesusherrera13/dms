@@ -24,8 +24,6 @@ class PedidoSincronizar {
         $file =  fopen($file_full_name, "a");
         $file_i =  fopen($file_full_name_i, "a");
 
-        echo "Interfaz `".env('INTERFAZ_PEDIDO')."`\n";
-
         $query = DB::table('ventas_pedidos as ped')
                     ->leftJoin("ventas_clientes as cli","cli.id","ped.fk_cliente")
                     ->leftJoin("ventas_vendedores as ven","ven.id","cli.fk_vendedor")
@@ -81,7 +79,8 @@ class PedidoSincronizar {
                     ->whereIn("ped.estado", ['SURTIDO','CANCELADO'])
                     ->whereNotNull("venta.fk_factura")
                     // ->where("venta.fk_factura",'32892') // Prueba con grupo UNILEVER
-                    ->whereRaw("ped.fecha >=(select date_format(now(),'%Y-%m-01'))")
+                    // ->whereRaw("ped.fecha >=(select date_format(now(),'%Y-%m-01'))")
+                    ->whereRaw("ped.fecha >=(select date_format('2022-04-01','%Y-%m-01'))")
                     ->whereRaw("substr(usr.nombre,1,3) in ('MXL', 'TIJ', 'MZT','CLN')")
                     ->whereRaw("
                         (
@@ -166,6 +165,7 @@ class PedidoSincronizar {
         // die();
         
         try {
+            echo "Interfaz `".env('INTERFAZ_PEDIDO')."`\n";
 
             $connection = ssh2_connect(env('FTP_IP'), 22);
             ssh2_auth_password($connection, env('FTP_USER'), env('FTP_PASSWORD'));
