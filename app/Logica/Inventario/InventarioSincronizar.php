@@ -55,10 +55,11 @@ class InventarioSincronizar {
                         DB::raw("'0' as vlBeginningMonthQuantity"),
                         DB::raw("'0' as vlReceivedQuantity"),
                         DB::raw("'0' as vlDispatchedQuantity"),
-                        DB::raw("curdate() as dtStock"),
+                        DB::raw("NULL as dtStock"),
                         DB::raw("NULL as dtStatus"),
                         "id",
                         "precio_con_impuestos",
+                        DB::raw("if(estado='ACTIVO','ACT','DEACT') as cdStatusX"),
                     )
                     ->where("id_grupo", 10)
                     ->where("precio_con_impuestos",">",0)
@@ -76,7 +77,7 @@ class InventarioSincronizar {
                     ->whereNotNull("alm.id")
                     // ->where("prod.id_grupo", 10)
                     ->orderBy("alm.nombre")
-                    // ->where("alm.id", 9) // PRUEBAS COMENTAR
+                    ->where("alm.id", 9) // PRUEBAS COMENTAR
                     // ->where("almprod.fk_producto", 844) // PRUEBAS COMENTAR
                     // ->limit(9)
                     ;
@@ -100,12 +101,14 @@ class InventarioSincronizar {
 
                 $query = DB::table("inventarios_almacenes_productos as almprod")
                             ->select(
-                                DB::raw("
-                                if(
-                                    almprod.existencia=0,round(".$producto->precio_con_impuestos.",2),
-                                    round(almprod.existencia*".$producto->precio_con_impuestos.")
-                                ) as vlBeginningMonthAmount"
-                            )
+                                /* DB::raw("
+                                    if(
+                                        almprod.existencia=0,
+                                        round(".$producto->precio_con_impuestos."),
+                                        round(almprod.existencia*".$producto->precio_con_impuestos.")
+                                    ) as vlBeginningMonthAmount"
+                                ), */
+                                DB::raw("substr(fecha_ultimo_movimiento,1,10) as dtStock")
                             )
                             ->where("almprod.fk_almacen", $sucursal->cdWarehouse)
                             ->where("almprod.fk_producto", $producto->id);
@@ -115,13 +118,32 @@ class InventarioSincronizar {
                 $data_ = $query->get();
                 // dd($data_);
 
-                $producto->vlBeginningMonthAmount = empty($data_[0]) ? $producto->precio_con_impuestos : $data_[0]->vlBeginningMonthAmount;
+                if(empty($data_[0])) continue;
 
+                // $producto->vlBeginningMonthAmount = $data_[0]->vlBeginningMonthAmount;
+                $producto->dtStock = $data_[0]->dtStock;
 
-                $query = DB::table("inventarios_almacenes_productos as almprod")
-                            ->select("almprod.existencia as vlBeginningMonthQuantity")
-                            ->where("almprod.fk_almacen", $sucursal->cdWarehouse)
-                            ->where("almprod.fk_producto", $producto->id);
+                // echo $producto->cdWarehouse."|".$producto->id."\n<br>";
+                $query = DB::table("inventarios_movimiento_detalle as det")
+                    // ->leftJoin("ventas_productos as prod", "prod.id", "det.fk_producto")
+                    ->select(
+                        DB::raw("round(det.saldo) as vlBeginningMonthQuantity"),
+                        DB::raw("
+                            if(
+                                det.saldo=0,
+                                round(".$producto->precio_con_impuestos."),
+                                round(det.saldo*".$producto->precio_con_impuestos.")
+                            ) as vlBeginningMonthAmount
+                            "
+                        )
+                    )
+                    ->whereRaw("det.fecha>='2022-04-01 00:00:00'")
+                    // ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
+                    ->where("det.fk_almacen", $producto->cdWarehouse)
+                    ->where("det.fk_producto", $producto->id)
+                    // ->where("prod.precio_con_impuestos",">",0)
+                    ->orderBy("det.fecha")
+                    ->limit(1);
                 // ->leftJoin("inventarios_almacenes_productos as almprod", "almprod.fk_almacen","alm.id")
                 
                 // dd($query->toSql());
@@ -129,57 +151,22 @@ class InventarioSincronizar {
 
 
                 if(empty($data_[0])) {
+                    $producto->vlBeginningMonthAmount = 0; 
                     $producto->vlBeginningMonthQuantity = 0; 
-                    $producto->cdStatus = 'DEACT'; 
+                    $producto->cdStatus = 'DEACT';
                 }
                 else {
+                    $producto->vlBeginningMonthAmount = $data_[0]->vlBeginningMonthAmount;
                     $producto->vlBeginningMonthQuantity = $data_[0]->vlBeginningMonthQuantity;
                     $producto->cdStatus = 'ACT';
                 }
 
-
-                // dd($producto);
-                
-                // $producto->cdWarehouse = $sucursal->cdWarehouse;
-                // dd($producto);
-
-                // echo $producto->cdWarehouse."|".$producto->id."\n<br>";
-                /* $query = DB::table("inventarios_movimiento_detalle as det")
-                        // ->leftJoin("ventas_productos as prod", "prod.id", "det.fk_producto")
-                        ->select(
-                            DB::raw("
-                                if(
-                                    ifnull(det.saldo*".$producto->precio_con_impuestos.",0) > 0,
-                                    round(ifnull(det.saldo*".$producto->precio_con_impuestos.",0),2),
-                                    round(".$producto->precio_con_impuestos.",2)
-                                ) as vlBeginningMonthAmount"
-                            )
-                        )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
-                        ->where("det.fk_almacen", $producto->cdWarehouse)
-                        ->where("det.fk_producto", $producto->id)
-                        // ->where("prod.precio_con_impuestos",">",0)
-                        ->orderBy("det.fecha")
-                        ->limit(1);
-
-                $data_ = $query->get();
-
-                if(empty($data_[0])) {
-                    $producto->vlBeginningMonthAmount = $producto->precio_con_impuestos;
-                }
-                else {
-                    $producto->vlBeginningMonthAmount = $data_[0]->vlBeginningMonthAmount <= 0 ? $producto->precio_con_impuestos : $data_[0]->vlBeginningMonthAmount;
-                } */
-
-
-                // dd($query->toSql());
-                // dd($data_);
-                // dd($producto);
                 $query = DB::table("inventarios_movimiento_detalle as det")
                         ->select(
-                            DB::raw("round(ifnull(sum(det.entrada),0),2) as vlReceivedQuantity")
+                            DB::raw("round(ifnull(sum(det.entrada),0)) as vlReceivedQuantity")
                         )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
+                        // ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
+                        ->whereRaw("det.fecha>='2022-04-01 00:00:00'")
                         ->where("det.fk_almacen", $producto->cdWarehouse)
                         ->where("det.fk_producto", $producto->id)
                         // ->orderBy("det.fecha")
@@ -193,9 +180,9 @@ class InventarioSincronizar {
 
                 $query = DB::table("inventarios_movimiento_detalle as det")
                         ->select(
-                            DB::raw("round(ifnull(sum(det.salida),0),2) as vlDispatchedQuantity")
+                            DB::raw("round(ifnull(sum(det.salida),0)) as vlDispatchedQuantity")
                         )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
+                        ->whereRaw("det.fecha>='2022-04-01 00:00:00'")
                         ->where("det.fk_almacen", $producto->cdWarehouse)
                         ->where("det.fk_producto", $producto->id)
                         // ->orderBy("det.fecha")
@@ -203,26 +190,15 @@ class InventarioSincronizar {
                         ;
                         // dd($query->toSql());
                         $data_ = $query->get();
-                            if($producto->id == 80) dd($query->toSql());
+                            // if($producto->id == 80) dd($query->toSql());
                 $data_ = $query->get();
 
                 $producto->vlDispatchedQuantity = empty($data_[0]) ? 0 : $data_[0]->vlDispatchedQuantity;
 
-                $query = DB::table("inventarios_movimiento_detalle as det")
-                            ->select(
-                                DB::raw("ifnull(substr(det.fecha,1,10),'NULL') as dtStock")
-                            )
-                            ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
-                            ->where("det.fk_almacen", $producto->cdWarehouse)
-                            ->where("det.fk_producto", $producto->id)
-                            ->orderBy("det.fecha", "desc")
-                            ->limit(1);
-                // dd($query->toSql());
-                $data_ = $query->get();
-
-                // $producto->dtStock = empty($data_[0]) ? 'NULL' : $data_[0]->dtStock;
-
-                // dd($producto);
+                if(!$producto->cdProduct) continue;
+                if($producto->vlBeginningMonthAmount <= 0 && $producto->vlBeginningMonthQuantity <= 0 && $producto->vlReceivedQuantity <= 0 && $producto->vlDispatchedQuantity <= 0) continue;
+                /* 
+                // dd($producto); */
                 $line = $producto->cdProduct."\t".$producto->cdWarehouse."\t".$producto->vlBeginningMonthAmount;
                 $line.= "\t".$producto->vlBeginningMonthQuantity;
                 $line.= "\t".$producto->vlReceivedQuantity."\t".$producto->vlDispatchedQuantity."\t".$producto->dtStock; 
@@ -230,95 +206,12 @@ class InventarioSincronizar {
                 
                 fwrite($file, $line);
             }
-
-            /* 
-            echo $row->cdWarehouse."|".$row->id."\n<br>";
-            
-            $query = DB::table("inventarios_movimiento_detalle as det")
-                        ->leftJoin("ventas_productos as prod", "prod.id", "det.fk_producto")
-                        ->select(
-                            DB::raw("
-                                if(
-                                    ifnull(det.saldo*prod.precio_con_impuestos,0) > 0,
-                                    round(ifnull(det.saldo*prod.precio_con_impuestos,0),2),
-                                    round(prod.precio_con_impuestos,2)
-                                ) as vlBeginningMonthAmount")
-                        )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
-                        ->where("det.fk_almacen", $row->cdWarehouse)
-                        ->where("det.fk_producto", $row->id)
-                        ->where("prod.precio_con_impuestos",">",0)
-                        ->orderBy("det.fecha")
-                        ->limit(1);
-            // dd($query->toSql());
-            $data_ = $query->get();
-            // dd($data_);
-            $row->vlBeginningMonthAmount = empty($data_[0]) ? 0 : $data_[0]->vlBeginningMonthAmount;
-
-            $query = DB::table("inventarios_movimiento_detalle as det")
-                        ->select(
-                            DB::raw("round(ifnull(sum(det.entrada),0),2) as vlReceivedQuantity")
-                        )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
-                        ->where("det.fk_almacen", $row->cdWarehouse)
-                        ->where("det.fk_producto", $row->id)
-                        // ->orderBy("det.fecha")
-                        // ->limit(1)
-                        ;
-            // dd($query->toSql());
-            $data_ = $query->get();
-            // dd($data_);
-            // if($data_) $row->vlReceivedQuantity = $data_[0]->vlReceivedQuantity;
-            // $row->vlReceivedQuantity = $data_ ? $data_[0]->vlReceivedQuantity : 'NULL';
-            $row->vlReceivedQuantity = empty($data_[0]) ? 0 : $data_[0]->vlReceivedQuantity;
-
-            // echo $data_[0]->vlReceivedQuantity."\n<br>";
-
-            $query = DB::table("inventarios_movimiento_detalle as det")
-                        ->select(
-                            DB::raw("round(ifnull(sum(det.salida),2),2) as vlDispatchedQuantity")
-                        )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
-                        ->where("det.fk_almacen", $row->cdWarehouse)
-                        ->where("det.fk_producto", $row->id)
-                        // ->orderBy("det.fecha")
-                        // ->limit(1)
-                        ;
-            // dd($query->toSql());
-            $data_ = $query->get();
-            // dd($data_);
-            // if($data_) $row->vlDispatchedQuantity = $data_[0]->vlDispatchedQuantity;
-            // $row->vlDispatchedQuantity = $data_ ? $data_[0]->vlDispatchedQuantity : 'NULL';
-            $row->vlDispatchedQuantity = empty($data_[0]) ? 0 : $data_[0]->vlDispatchedQuantity;
-            // dd($row);
-
-            $query = DB::table("inventarios_movimiento_detalle as det")
-                        ->select(
-                            DB::raw("ifnull(substr(det.fecha,1,10),'NULL') as dtStock")
-                        )
-                        ->whereRaw("det.fecha>=concat(substr(curdate(),1,7),'-01 00:00:00')")
-                        ->where("det.fk_almacen", $row->cdWarehouse)
-                        ->where("det.fk_producto", $row->id)
-                        ->orderBy("det.fecha", "desc")
-                        ->limit(1);
-            // dd($query->toSql());
-            $data_ = $query->get();
-            // dd($data_);
-            // if($data_) $row->dtStock = $data_[0]->dtStock;
-            // $row->dtStock = $data_ ? $data_[0]->dtStock : 'NULL';
-            $row->dtStock = empty($data_[0]) ? 0 : $data_[0]->dtStock;
-
-            // print_r($row);
-
-            $line = $row->cdProduct."\t".$row->cdWarehouse."\t".$row->vlBeginningQuantity."\t".$row->vlBeginningMonthAmount;
-            $line.= "\t".$row->vlReceivedQuantity."\t".$row->vlDispatchedQuantity."\t".$row->dtStock."\n"; 
-            */
             
             fwrite($file, $line);
         }
 
         fclose($file);
-        die();
+        // die();
 
         try {
 
